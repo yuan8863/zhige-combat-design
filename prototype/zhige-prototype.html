@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>《止戈》战斗原型 · 黄渊 · 雷火战斗策划作品集</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100%;height:100%;background:#07090d;overflow:hidden;
+    font-family:"Microsoft YaHei","PingFang SC","Noto Sans SC",system-ui,sans-serif;color:#e8edf5}
+  #wrap{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center}
+  #stage{position:relative;width:1280px;height:720px;transform-origin:center center;flex:0 0 auto}
+  canvas{display:block;width:1280px;height:720px;background:#0a0d13;border-radius:10px;
+    box-shadow:0 0 0 1px #1d2534,0 24px 70px rgba(0,0,0,.75)}
+  /* ===== 调试/数据面板 ===== */
+  #panel{position:absolute;right:-306px;top:0;width:296px;height:720px;
+    background:rgba(13,17,24,.94);border:1px solid #1d2534;border-radius:10px;
+    padding:12px 13px;font-size:12px;line-height:1.55;overflow:hidden}
+  #stage.panel-off #panel{display:none}
+  .ph{font-size:11px;letter-spacing:.14em;color:#5f7characters}
+  .ph{font-size:11px;letter-spacing:.14em;color:#63708a;margin:10px 0 5px;text-transform:uppercase}
+  .ph:first-child{margin-top:0}
+  .row{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+  .row b{font-weight:600;color:#e8edf5;font-variant-numeric:tabular-nums}
+  .k{color:#7c8aa3}
+  .hl{color:#ffd166}
+  .ok{color:#5ee6a8}
+  .bad{color:#ff6b7a}
+  .mvname{font-size:14px;font-weight:700;color:#7fb3ff;margin-bottom:4px}
+  .bar3{display:flex;height:5px;border-radius:3px;overflow:hidden;margin:3px 0 7px;background:#1a2130}
+  .bar3 i{display:block;height:100%}
+  .log{font-size:11px;line-height:1.7;font-variant-numeric:tabular-nums;max-height:196px;overflow:hidden}
+  .log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* ===== 开场选人 ===== */
+  #menu{position:absolute;inset:0;background:rgba(6,8,12,.965);border-radius:10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:20}
+  #menu h1{font-size:40px;letter-spacing:.3em;font-weight:800;color:#f2f5fa}
+  #menu h1 small{display:block;font-size:12px;letter-spacing:.22em;color:#6b7a94;font-weight:400;margin-top:9px}
+  .hgrid{display:grid;grid-template-columns:repeat(4,176px);gap:12px}
+  .hcard{background:#111722;border:1.5px solid #232c3d;border-radius:9px;padding:13px 12px;cursor:pointer;
+    transition:.16s;text-align:left}
+  .hcard:hover{border-color:#3d5b8f;transform:translateY(-3px)}
+  .hcard.on{border-color:#7fb3ff;background:#152036;box-shadow:0 0 0 3px rgba(127,179,255,.14)}
+  .hcard .hn{font-size:17px;font-weight:700;margin-bottom:3px}
+  .hcard .hs{font-size:11px;color:#6b7a94;margin-bottom:9px}
+  .hcard .hd{font-size:11px;color:#93a2ba;line-height:1.62}
+  .diff{display:flex;gap:9px}
+  .dbtn{padding:7px 21px;border-radius:7px;background:#111722;border:1.5px solid #232c3d;
+    cursor:pointer;font-size:13px;color:#93a2ba;transition:.16s}
+  .dbtn.on{border-color:#7fb3ff;color:#e8edf5;background:#152036}
+  .go{padding:12px 60px;border-radius:9px;background:linear-gradient(180deg,#3f7ae0,#2c5cb8);
+    border:none;color:#fff;font-size:16px;font-weight:700;letter-spacing:.16em;cursor:pointer;
+    font-family:inherit;transition:.16s}
+  .go:hover{filter:brightness(1.13)}
+  .tips{font-size:11.5px;color:#5b6880;text-align:center;line-height:1.85}
+  .tips b{color:#93a2ba;font-weight:600}
+  /* ===== 结算 ===== */
+  #over{position:absolute;inset:0;background:rgba(6,8,12,.9);border-radius:10px;
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:19}
+  #over.on{display:flex}
+  #over .t{font-size:52px;font-weight:800;letter-spacing:.2em}
+  #over .s{font-size:13px;color:#8b99b2;line-height:2;text-align:center}
+  /* ===== 顶部帮助条 ===== */
+  #help{position:absolute;left:0;bottom:-46px;width:1280px;font-size:12px;color:#5f6d86;
+    display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+  #help b{color:#9fb0c9;font-weight:600}
+
+  /* ===== 触屏支持（手机 / 平板）=====
+     桌面端不受任何影响：以下规则全部挂在 body.touch 下。
+     触屏设备由脚本检测后加上这个 class。 */
+  #touchpad{display:none} #rotate{display:none}
+  body.touch #panel{display:none!important}
+  body.touch #help{display:none}
+  body.touch #wrap{padding-bottom:140px}
+  body.touch #stage{transform:none!important;width:100vw;height:56.25vw;max-height:calc(100vh - 150px)}
+  body.touch canvas{width:100%;height:100%}
+  body.touch #menu{padding:12px}
+  body.touch #menu h1{font-size:26px;letter-spacing:.18em}
+  body.touch .hgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:96vw}
+  body.touch .hcard{padding:9px 10px}
+  body.touch .go{padding:10px 40px;font-size:15px}
+
+  body.touch #touchpad{display:flex;position:fixed;left:0;right:0;bottom:0;height:132px;z-index:30;
+    justify-content:space-between;align-items:center;padding:0 12px;
+    touch-action:none;user-select:none;-webkit-user-select:none;
+    background:linear-gradient(180deg,rgba(7,9,13,0) 0%,rgba(7,9,13,.94) 34%)}
+  #touchpad .grp{display:flex;gap:9px;align-items:center}
+  #touchpad button{width:58px;height:58px;border-radius:15px;border:1.5px solid #2b3446;
+    background:rgba(21,28,40,.94);color:#dfe6f2;font-size:17px;font-weight:700;font-family:inherit;
+    touch-action:none;-webkit-tap-highlight-color:transparent;transition:background .06s}
+  #touchpad button.on{background:#2c5cb8;border-color:#7fb3ff;color:#fff}
+  #touchpad .move{width:66px;height:66px;font-size:23px}
+  #touchpad .sk{font-size:14px;width:54px}
+
+  body.touch #rotate{display:none}
+  @media (orientation:portrait){
+    body.touch #rotate{display:flex;position:fixed;inset:0;z-index:40;
+      flex-direction:column;align-items:center;justify-content:center;gap:14px;
+      background:rgba(7,9,13,.96);color:#93a2ba;font-size:15px;text-align:center;line-height:2;padding:24px}
+    body.touch #rotate b{color:#7fb3ff;font-size:20px;display:block;margin-bottom:4px}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="cv" width="1280" height="720"></canvas>
+
+    <div id="panel"></div>
+
+    <div id="help">
+      <span><b>A / D</b> 移动</span>
+      <span><b>J</b> 轻击（连段）</span>
+      <span><b>K</b> 重击</span>
+      <span><b>L</b> 上挑</span>
+      <span><b>空格</b> 格挡（受击前 8 帧内 = 弹反）</span>
+      <span><b>Shift</b> 闪避</span>
+      <span><b>U</b> 绝技</span>
+      <span><b>Q / E</b> 武学技能</span>
+      <span><b>R</b> 重开</span>
+      <span><b>Tab</b> 面板</span>
+    </div>
+
+    <!-- 触屏控制盘：仅触屏设备显示，由脚本生成按钮 -->
+    <div id="touchpad"></div>
+    <div id="rotate">
+      <b>请把手机横过来</b>
+      《止戈》是一个 16:9 的横版对战原型<br>
+      竖屏下按钮会挡住战场<br>
+      <span style="color:#5f6d86;font-size:13px">（用电脑打开体验更完整：有帧数据面板与键盘操作）</span>
+    </div>
+
+    <div id="menu">
+      <h1>止 戈<small>ZHIGE · 3v3 冷兵器竞技战斗原型 · 帧精确实现</small></h1>
+      <div class="hgrid" id="hgrid"></div>
+      <div class="diff" id="diff">
+        <div class="dbtn" data-d="0">简单 AI</div>
+        <div class="dbtn on" data-d="1">普通 AI</div>
+        <div class="dbtn" data-d="2">困难 AI</div>
+      </div>
+      <button class="go" id="go">开 始 对 局</button>
+      <div class="tips">
+        本原型为设计文档 <b>01_战斗系统设计白皮书_止戈.md</b> 的帧级实现<br>
+        右侧面板实时显示当前招式的<b>起手 / 判定 / 收招 / 有利帧</b>，可与文档逐项核对
+      </div>
+    </div>
+
+    <div id="over">
+      <div class="t" id="overT"></div>
+      <div class="s" id="overS"></div>
+      <button class="go" id="again">再 来 一 局</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =========================================================================
+   《止戈》战斗原型
+   作者：黄渊   |   配套文档：01_战斗系统设计白皮书_止戈.md
+   数值约定：全部帧数 60FPS 基准；所有数据直接来自设计文档，未做二次调整
+   ========================================================================= */
+
+const FPS = 60, DT = 1 / FPS;
+const W = 1280, H = 720, GROUND = 578;
+
+/* ------------------------- 常量 ------------------------- */
+const MAX_HP = 1200;
+const MAX_POISE = 100;
+const POISE_REGEN = 12 / FPS;          // 每秒 12
+const POISE_REGEN_CORNERED = 18 / FPS; // 困兽之斗：每秒 18
+const BLOCK_DRAIN = 10 / FPS;          // 格挡每秒耗韧 10
+const BLOCK_MAX_FRAMES = 45;
+const PARRY_WINDOW = 8;
+const PARRY_WINDOW_CORNERED = 12;
+const PARRY_MOMENTUM = 22;
+const PARRY_MOMENTUM_CORNERED = 30;
+const BLOCK_REDUCE = 0.80;             // 格挡减伤
+const BLOCK_POISE_MULT = 0.5;
+const HEAVY_VS_BLOCK_POISE_MULT = 1.8;
+const BREAK_FRAMES = 40;
+const EXECUTE_DMG = 300, EXECUTE_DMG_CORNERED = 200;
+/* 困兽之斗（v3）：落后方的补偿必须是【连续型防守能力】。
+   初版把这些补偿挂在「弹反」上（每局仅约 1.5 次），仿真 A/B 实测只能挽回 0.6pp，等于失效；
+   改为连续生效后挽回 1.9pp。详见 04_战斗数值仿真报告 §5。 */
+const PARRY_POISE_CORNERED   = 40;    // 弹反成功额外削对手 40 韧性
+const CORNERED_POISE_TAKEN   = 0.75;  // 受到的削韧 ×0.75
+const BLOCK_REDUCE_CORNERED  = 0.88;  // 格挡减伤 80% -> 88%
+const INPUT_BUFFER = 8;                // 输入缓冲 8 帧
+const MOMENTUM_DECAY = 3 / FPS;        // 无交战每秒衰减 3
+const MOMENTUM_DECAY_DELAY = 180;      // 3 秒无攻击后开始衰减
+
+/* ------------------------- 基础招式表（执锐 = 100% 基准） ------------------------- */
+const BASE_MOVES = {
+  l1:    { key:'l1',    name:'轻击·壹', startup:6,  active:3, recovery:9,  dmg:62,  poise:14,
+           lunge:30,  hitstun:14, blockstun:12, knockback:25,  cancel:4, tier:'light', next:'l2', swing:'light' },
+  l2:    { key:'l2',    name:'轻击·贰', startup:7,  active:3, recovery:12, dmg:78,  poise:16,
+           lunge:40,  hitstun:14, blockstun:12, knockback:35,  cancel:4, tier:'light', next:'l3', swing:'light' },
+  l3:    { key:'l3',    name:'轻击·叁', startup:10, active:4, recovery:20, dmg:115, poise:26,
+           lunge:90,  hitstun:22, blockstun:16, knockback:110, cancel:0, tier:'heavy', next:null, swing:'finisher' },
+  heavy: { key:'heavy', name:'重 击',   startup:18, active:5, recovery:24, dmg:185, poise:38,
+           lunge:70,  hitstun:22, blockstun:24, knockback:150, cancel:0, tier:'heavy', next:null,
+           swing:'heavy', guardCrush:true },
+  launch:{ key:'launch',name:'上 挑',   startup:12, active:4, recovery:20, dmg:95,  poise:20,
+           lunge:20,  hitstun:24, blockstun:16, knockback:60,  cancel:0, tier:'heavy', next:null, swing:'up' },
+  ult:   { key:'ult',   name:'绝技·断岳',startup:24, active:6, recovery:30, dmg:380, poise:100,
+           lunge:160, hitstun:30, blockstun:24, knockback:200, cancel:0, tier:'ult',  next:null,
+           swing:'ult', armor:true },
+};
+
+/* ------------------------- 四职业（偏移值直接取自 03_英雄技能设计集） ------------------------- */
+const HEROES = [
+  { id:'zhirui', name:'执锐', sub:'剑 · 均衡基准', color:'#7fb3ff',
+    dmgScale:1.00, poiseScale:1.00, startupOffset:0, range:140,
+    walk:180, run:340, invulnFrames:8, armorFrom:null, closePenalty:null, bodyW:30, bodyH:84, weapon:150,
+    ult:null,   // 使用基准绝技「断岳」
+    desc:'唯一拥有完整三段连段。无短板，也没有特权。',
+    quote:'"我什么都行，所以我要看对面缺什么。"' },
+  { id:'zhongfeng', name:'重锋', sub:'巨剑 · 霸体压制', color:'#ff9f5a',
+    dmgScale:1.18, poiseScale:1.44, startupOffset:4, range:175,
+    walk:170, run:320, invulnFrames:8, armorFrom:8, knockbackScale:1.15,
+    closePenalty:null, bodyW:36, bodyH:90, weapon:190,
+    // 绝技·崩山：起手更慢、伤害更高、削韧 150 必定破防（含格挡）
+    ult:{ name:'绝技·崩山', startup:28, active:6, recovery:32, dmg:470, poise:150, guardCrush:true, armor:true },
+    desc:'重档招式第 8 帧起霸体。起手最慢，抢帧必输。',
+    quote:'"我不要抢帧，我要你撞上来。"' },
+  { id:'yingsuo', name:'影梭', sub:'短刃 · 速度骚扰', color:'#7ef0b0',
+    dmgScale:0.82, poiseScale:0.80, startupOffset:-1, range:115,
+    walk:195, run:360, invulnFrames:10, armorFrom:null, knockbackScale:0.85,
+    closePenalty:null, bodyW:26, bodyH:76, weapon:104,
+    // 绝技·千影：6 段突进刺击，每段可被打断（无霸体）
+    ult:{ name:'绝技·千影', startup:20, active:18, recovery:30, dmg:62, poise:15,
+          hits:6, hitInterval:3, knockback:6, hitstun:8, blockstun:8, armor:false },
+    desc:'5 帧起手，抢帧永远赢。代价是伤害与削韧全游戏最低。',
+    quote:'"我不换血，我换节奏。"' },
+  { id:'changce', name:'长策', sub:'长兵 · 空间控制', color:'#d0a4ff',
+    dmgScale:0.98, poiseScale:0.96, startupOffset:2, range:225,
+    walk:175, run:330, invulnFrames:8, armorFrom:null, knockbackScale:1.70,
+    closePenalty:{ range:70, mult:0.60 },
+    bodyW:28, bodyH:86, weapon:250,
+    // 绝技·千里：直线穿透，起手长、收招更长
+    ult:{ name:'绝技·千里', startup:26, active:5, recovery:34, dmg:350, poise:60 },
+    desc:'225px 攻击距离、击退 ×1.7。贴身 70px 内伤害 ×0.6。',
+    quote:'"我不让你进来。"' },
+];
+
+/* ------------------------- 武学技能（每职业 2 个，见 03_英雄技能设计集 §3） -------------------------
+   技能复用与基础招式完全相同的帧机制（起手/判定/收招、有利帧、顿帧、霸体），
+   只是额外携带 type-specific 字段：
+     dashTo        位移量（正=向前，负=向后），在判定窗口内匀速完成
+     invuln        无敌帧窗口 [起, 止]（相对招式帧 mf）
+     counter       反击架势：架势窗口内受击则自动反击
+     armorStance   架势窗口内免僵直（重锋镇岳）
+     buffNext      架势生效时给"下一次攻击"的伤害倍率
+     hits/hitInterval  多段
+     rangeMult     攻击距离倍率（荡寇 180° 横扫）
+     landing       落地冲击 { frame, radius, dmg, knockback }
+     zone          部署场域 { dist, radius, duration, dps, slow }
+   ---------------------------------------------------------------------------- */
+const SKILLS = {
+  zhirui: [
+    { name:'踏雪', type:'dash',   cd:360, startup:5,  active:8,  recovery:11,
+      dashTo:180, invuln:[6,13] },
+    { name:'回风', type:'stance', cd:540, startup:4,  active:20, recovery:6,
+      counter:{ dmg:140, poise:30, hitstun:22 } },
+  ],
+  zhongfeng: [
+    { name:'镇岳', type:'buff',   cd:600, startup:12, active:15, recovery:8,
+      armorStance:true, buffNext:1.40 },
+    { name:'荡寇', type:'aoe',    cd:420, startup:20, active:6,  recovery:26,
+      dmg:150, poise:45, hitstun:22, blockstun:16, knockback:130, rangeMult:1.80 },
+  ],
+  yingsuo: [
+    { name:'影步', type:'blink',  cd:300, startup:2,  active:4,  recovery:0,
+      dashTo:200, invuln:[1,6] },
+    { name:'连环刺', type:'multi', cd:480, startup:4, active:27, recovery:6,
+      dmg:45, poise:12, hitstun:10, blockstun:8, knockback:20,
+      hits:3, hitInterval:9 },
+  ],
+  changce: [
+    { name:'横驱', type:'retreat', cd:420, startup:8,  active:12, recovery:10,
+      // 冲击半径(240px) 必须显著大于「后跳距离(160px) + 贴身间距」，否则落地时对手必然在范围外，
+      // AOE 永远打不中——这是设计时必须做的量纲检查。
+      dashTo:-160, landing:{ frame:22, radius:240, dmg:60, knockback:120 } },
+    { name:'枪阵', type:'deploy',  cd:720, startup:18, active:0,  recovery:10,
+      zone:{ dist:150, radius:170, duration:480, dps:50, slow:0.35 } },
+  ],
+};
+
+/* 由基础招式 + 职业偏移，生成该职业的完整招式表 */
+function buildMoves(h) {
+  const out = {};
+  for (const k in BASE_MOVES) {
+    const b = BASE_MOVES[k];
+    let m;
+    if (k === 'ult' && h.ult) {
+      // 职业定制绝技：整体替换，不再叠加职业倍率
+      m = Object.assign({}, b, h.ult);
+    } else {
+      m = Object.assign({}, b, {
+        dmg:   Math.round(b.dmg   * h.dmgScale),
+        poise: Math.round(b.poise * h.poiseScale),
+        startup: b.startup + h.startupOffset,
+      });
+    }
+    m.total = m.startup + m.active + m.recovery;
+    // 有利帧公式：受击僵直 − (总帧 − 起手)；注意 active+recovery 恒定 → 有利帧跨职业不变
+    m.advHit   = m.hitstun   - (m.active + m.recovery);
+    m.advBlock = m.blockstun - (m.active + m.recovery);
+    out[k] = m;
+  }
+  // 武学技能：数值为定稿绝对值，不再叠加职业倍率
+  (SKILLS[h.id] || []).forEach((s, i) => {
+    const m = Object.assign({
+      key: 's' + (i + 1), tier: 'skill', lunge: 0, cancel: 0,
+      dmg: 0, poise: 0, hitstun: 14, blockstun: 12, knockback: 0,
+      hits: 1, hitInterval: 1,
+    }, s);
+    m.total    = m.startup + m.active + m.recovery;
+    m.advHit   = m.hitstun   - (m.active + m.recovery);
+    m.advBlock = m.blockstun - (m.active + m.recovery);
+    out[m.key] = m;
+  });
+  return out;
+}
+
+/* ------------------------- 输入 ------------------------- */
+const keys = Object.create(null);
+const pressedThisFrame = Object.create(null);
+addEventListener('keydown', e => {
+  const k = normKey(e);
+  if (k) e.preventDefault();
+  if (k && !keys[k]) pressedThisFrame[k] = true;
+  if (k) keys[k] = true;
+  if (k === 'Tab') { document.getElementById('stage').classList.toggle('panel-off'); }
+});
+addEventListener('keyup', e => { const k = normKey(e); if (k) { keys[k] = false; e.preventDefault(); } });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+function normKey(e) {
+  const c = e.code;
+  if (c === 'KeyA' || c === 'ArrowLeft')  return 'left';
+  if (c === 'KeyD' || c === 'ArrowRight') return 'right';
+  if (c === 'KeyJ') return 'light';
+  if (c === 'KeyK') return 'heavy';
+  if (c === 'KeyL') return 'launch';
+  if (c === 'Space') return 'block';
+  if (c === 'ShiftLeft' || c === 'ShiftRight') return 'dodge';
+  if (c === 'KeyU') return 'ult';
+  if (c === 'KeyQ') return 'skill1';
+  if (c === 'KeyE') return 'skill2';
+  if (c === 'Tab') return 'Tab';
+  return null;
+}
+function consumePressed(k) { const v = !!pressedThisFrame[k]; return v; }
+function clearPressed() { for (const k in pressedThisFrame) pressedThisFrame[k] = false; }
+
+/* ------------------------- 场域系统（长策「枪阵」） -------------------------
+   部署型场域：进入者每秒受 dps 伤害并减速 slow。场域属于部署者，只伤害对手。 */
+let zones = [];
+function spawnZone(owner, cfg) {
+  zones.push({
+    x: owner.x + cfg.dist * owner.facing,
+    radius: cfg.radius,
+    until: worldFrame + cfg.duration,
+    owner: owner, cfg: cfg, tick: 0,
+  });
+}
+/* 某位置是否处于敌方场域内，返回减速比例 */
+function zoneSlowAt(x, self) {
+  let slow = 0;
+  for (const z of zones) {
+    if (z.owner === self) continue;
+    if (Math.abs(x - z.x) <= z.radius) slow = Math.max(slow, z.cfg.slow);
+  }
+  return slow;
+}
+function updateZones() {
+  for (let i = zones.length - 1; i >= 0; i--) {
+    const z = zones[i];
+    if (worldFrame > z.until) { zones.splice(i, 1); continue; }
+    const target = (z.owner === player) ? enemy : player;
+    if (!target) continue;
+    if (Math.abs(target.x - z.x) <= z.radius && target.state !== 'break') {
+      z.tick++;
+      if (z.tick % 60 === 0) {                       // 每秒结算一次
+        target.hp = Math.max(0, target.hp - z.cfg.dps);
+        addFloater(target.x, GROUND - 118, '-' + z.cfg.dps, '#d0a4ff', 14);
+        spawnSpark(target.x, GROUND - 40, '#d0a4ff', 5, 0.6);
+      }
+    }
+  }
+}
+
+/* 落地冲击（长策「横驱」）：在指定帧对半径内对手造成伤害与击退 */
+function applyLanding(self, opp, cfg) {
+  if (!opp || opp.hp <= 0) return;
+  if (Math.abs(opp.x - self.x) > cfg.radius) return;
+  if (opp.state === 'break') return;
+  const blocked = opp.state === 'block';
+  const dmg = blocked ? cfg.dmg * (1 - BLOCK_REDUCE) : cfg.dmg;
+  opp.hp = Math.max(0, opp.hp - dmg);
+  if (!blocked) {
+    opp.setState('hitstun'); opp.stun = 16; opp.stunKind = 'landing';
+    opp.x += cfg.knockback * self.facing;
+  }
+  momentum += (self.isPlayer ? 5 : -5);
+  addFloater(opp.x, GROUND - 130, '-' + Math.round(dmg), '#d0a4ff', 16);
+  spawnSpark(opp.x, GROUND - 50, '#d0a4ff', 18, 1.2);
+  shakeScreen(14, 9);
+  addBanner('横 驱', '#d0a4ff', 30);
+}
+
+/* 顿帧期间只做一件事：把玩家输入收进缓冲区，不推进任何战斗逻辑。
+   缓冲区的时间戳用被冻结的 worldFrame，因此玩家恢复行动后仍享有完整的 8 帧窗口。 */
+function captureInputDuringHitstop() {
+  const p = (typeof player !== 'undefined') ? player : null;
+  if (!p || p.stun > 0 || p.state === 'break') { clearPressed(); return; }
+  if (consumePressed('light'))  p.buffer = { k:'light',  f: worldFrame };
+  if (consumePressed('heavy'))  p.buffer = { k:'heavy',  f: worldFrame };
+  if (consumePressed('launch')) p.buffer = { k:'launch', f: worldFrame };
+  if (consumePressed('ult'))    p.buffer = { k:'ult',    f: worldFrame };
+  if (consumePressed('dodge'))  p.buffer = { k:'dodge',  f: worldFrame };
+  clearPressed();
+}
+
+/* ------------------------- 全局战斗状态 ------------------------- */
+let momentum = 0;            // 共享杀势条：>0 玩家优势，<0 AI 优势
+let worldFrame = 0;
+let hitstop = 0;
+let lastCombatFrame = 0;
+let shake = { t:0, mag:0, x:0, y:0 };
+let particles = [];
+let floaters = [];
+let slowmo = 0;
+let advantageLog = [];
+let banner = null;
+
+/* ------------------------- 战士 ------------------------- */
+class Fighter {
+  constructor(cfg, x, facing, isPlayer) {
+    this.cfg = cfg;
+    this.moves = buildMoves(cfg);
+    this.x = x; this.facing = facing; this.isPlayer = isPlayer;
+    this.reset();
+  }
+  reset() {
+    this.hp = MAX_HP; this.hpGhost = MAX_HP;
+    this.poise = MAX_POISE;
+    this.state = 'idle';
+    this.move = null; this.mf = 0; this.hitDone = false; this.hitFrame = -1;
+    this.hitSegment = 0; this.lastHitFrame = -99;
+    this.stun = 0; this.stunKind = null;
+    this.blockFrames = 0; this.parryUntil = -999; this.blockStartFrame = -999;
+    this.dodgeFrames = 0; this.dodgeDir = 1;
+    this.invulnUntil = -999;
+    this.comboStep = 0;
+    this.buffer = null;
+    this.anim = 0;
+    this.lastMoveName = '';
+    this.flash = 0; this.blockFlash = 0; this.parryFlash = 0;
+    this.airborne = 0;
+    this.armored = false;
+    /* --- 武学技能状态 --- */
+    this.cd = {};              // 技能冷却剩余帧
+    this.stance = null;        // 当前生效的架势（反击 / 霸体）
+    this.nextAtkMult = 1;      // 镇岳：下一次攻击的伤害倍率
+    /* --- AI 状态 --- */
+    this.threat = null;
+    this.moveDir = 0;
+    this.thinkCd = 0;
+    this.aiBlockUntil = -1;
+    this.aiWantsBlock = false;
+  }
+  get advMomentum() { return this.isPlayer ? momentum : -momentum; }
+  get isCornered()  { return this.advMomentum <= -60; }
+  get isDominant()  { return this.advMomentum >= 60; }
+
+  momentumMods() {
+    const a = this.advMomentum;
+    if (a >= 90) return { dmg:1.25, spd:1.12, poise:1.20, name:'碾压' };
+    if (a >= 60) return { dmg:1.15, spd:1.08, poise:1.15, name:'掌控' };
+    if (a >= 30) return { dmg:1.08, spd:1.04, poise:1.10, name:'压制' };
+    return { dmg:1.00, spd:1.00, poise:1.00, name:'均势' };
+  }
+  parryWindow() { return this.isCornered ? PARRY_WINDOW_CORNERED : PARRY_WINDOW; }
+
+  /* 能否行动 */
+  canAct() {
+    return this.state === 'idle' || this.state === 'block' ||
+           (this.state === 'attack' && this.canCancelNow());
+  }
+  canCancelNow() {
+    if (!this.move) return false;
+    if (!this.hitDone) return false;               // 只有"打到东西"才能取消
+    if (this.move.cancel <= 0) return false;
+    return this.mf >= this.move.startup + this.move.active;
+  }
+
+  setState(s) { this.state = s; }
+
+  /* ---------- 发起攻击 ---------- */
+  startMove(key) {
+    const m = this.moves[key];
+    if (!m) return false;
+    /* 技能：冷却未好则拒绝 */
+    if (m.cd) {
+      if ((this.cd[key] || 0) > 0) return false;
+      this.cd[key] = m.cd;
+    }
+    this.move = m; this.mf = 0; this.hitDone = false; this.hitFrame = -1;
+    this.hitSegment = 0; this.lastHitFrame = -99;
+    this.state = 'attack';
+    this.lastMoveName = m.name;
+    if (key === 'l1') this.comboStep = 1;
+    if (key === 'l2') this.comboStep = 2;
+    if (key === 'l3') this.comboStep = 3;
+    if (key === 'ult') { momentum += (this.isPlayer ? -60 : 60); }
+    /* 冷却类技能：起手帧立即生效的增益 */
+    if (m.buffNext) this.nextAtkMult = m.buffNext;
+    return true;
+  }
+
+  /* ---------- 每帧更新 ---------- */
+  update(opp) {
+    this.anim++;
+    if (this.flash > 0) this.flash--;
+    if (this.blockFlash > 0) this.blockFlash--;
+    if (this.parryFlash > 0) this.parryFlash--;
+    this.armored = false;
+    this.stance = null;                 // 架势窗口每帧重建，帧内有效
+
+    /* 技能冷却 */
+    for (const k in this.cd) if (this.cd[k] > 0) this.cd[k]--;
+
+    /* 韧性回复 */
+    const regenRate = this.isCornered ? POISE_REGEN_CORNERED : POISE_REGEN;
+    if (this.state !== 'block') this.poise = Math.min(MAX_POISE, this.poise + regenRate);
+
+    /* 血量延迟条 */
+    if (this.hpGhost > this.hp) this.hpGhost = Math.max(this.hp, this.hpGhost - MAX_HP / 45);
+
+    /* 破防（优先于普通硬直，用 stun 计时） */
+    if (this.state === 'break') {
+      this.stun--;
+      if (this.stun <= 0) {
+        this.setState('idle'); this.stunKind = null; this.comboStep = 0;
+        this.poise = MAX_POISE * 0.35; this.invulnUntil = worldFrame + 20;
+      }
+      return;
+    }
+
+    /* 硬直类状态 */
+    if (this.stun > 0) {
+      this.stun--;
+      if (this.stun <= 0) { this.setState('idle'); this.stunKind = null; this.comboStep = 0; }
+      return;
+    }
+
+    /* 闪避 */
+    if (this.state === 'dodge') {
+      this.dodgeFrames++;
+      const df = this.dodgeFrames;
+      const invStart = 5, invEnd = 5 + this.cfg.invulnFrames - 1;
+      if (df >= invStart && df <= invEnd) {
+        // 160px 在无敌帧内匀速位移（dodgeDir 已是屏幕方向，勿再乘 facing）
+        this.x += (160 / this.cfg.invulnFrames) * this.dodgeDir;
+      }
+      if (df >= 20) { this.setState('idle'); this.dodgeFrames = 0; }
+      return;
+    }
+
+    /* 攻击中 */
+    if (this.state === 'attack') {
+      this.mf++;
+      const m = this.move;
+      // 前冲位移（在起手最后一帧到判定期间施加）
+      if (this.mf === m.startup) this.x += m.lunge * this.facing;
+
+      // 霸体判定：重档招式（轻击叁 / 重击 / 上挑）在指定帧后进入霸体
+      const hasArmor = m.armor || (this.cfg.armorFrom && m.tier === 'heavy' && this.mf >= this.cfg.armorFrom);
+      this.armored = !!hasArmor;
+
+      /* ---------------- 武学技能特殊处理 ---------------- */
+      // 位移：踏雪前突 / 影步瞬移 / 横驱后跳（在判定窗口内匀速完成）
+      if (m.dashTo && this.mf > m.startup && this.mf <= m.startup + Math.max(1, m.active)) {
+        this.x += (m.dashTo / Math.max(1, m.active)) * this.facing;
+      }
+      // 无敌窗口
+      if (m.invuln && this.mf >= m.invuln[0] && this.mf <= m.invuln[1]) {
+        this.invulnUntil = worldFrame + 1;
+      }
+      // 架势窗口：反击（回风）/ 霸体（镇岳）
+      if ((m.counter || m.armorStance) && this.mf > m.startup && this.mf <= m.startup + m.active) {
+        this.stance = m;
+        if (m.armorStance) this.armored = true;
+      }
+      // 部署场域（枪阵）
+      if (m.zone && this.mf === m.startup + 1) spawnZone(this, m.zone);
+      // 落地冲击（横驱）
+      if (m.landing && this.mf === m.landing.frame) applyLanding(this, opp, m.landing);
+
+      // 取消窗口：允许连段
+      if (this.canCancelNow() && this.buffer && worldFrame - this.buffer.f <= INPUT_BUFFER) {
+        const nk = this.buffer.k;
+        if (nk === 'light' && m.next) { this.buffer = null; this.startMove(m.next); return; }
+      }
+      if (this.mf >= m.total) {
+        this.setState('idle'); this.move = null; this.comboStep = 0;
+      }
+      return;
+    }
+
+    /* 格挡中 */
+    if (this.state === 'block') {
+      this.blockFrames++;
+      if (!this.isCornered) this.poise -= BLOCK_DRAIN;   // 困兽之斗：格挡不再消耗韧性
+      if (this.poise <= 0) { this.enterBreak(); return; }
+      if (this.blockFrames >= BLOCK_MAX_FRAMES) {
+        // 超时强制破防
+        this.enterBreak(); return;
+      }
+      if (!this.isPlayer && worldFrame > this.aiBlockUntil) { this.setState('idle'); this.blockFrames = 0; }
+      if (this.isPlayer && !keys['block']) { this.setState('idle'); this.blockFrames = 0; }
+      return;
+    }
+
+    /* 空闲：可行动 */
+    this.setState('idle');
+  }
+
+  enterBreak() {
+    this.setState('break');
+    this.stun = BREAK_FRAMES;
+    this.poise = 0;
+    this.move = null; this.comboStep = 0;
+    addBanner('破 防', '#ffd166', 40);
+  }
+
+  /* ---------- 受击 ---------- */
+  receiveHit(attacker, move, blocked, parried) {
+    const isBroken = (this.state === 'break');
+
+    /* 0) 反击架势（执锐「回风」）：架势窗口内受击 → 自动反击 */
+    if (this.stance && this.stance.counter) {
+      const c = this.stance.counter;
+      attacker.hp = Math.max(0, attacker.hp - c.dmg);
+      attacker.poise = Math.max(0, attacker.poise - c.poise);
+      attacker.setState('hitstun'); attacker.stun = c.hitstun; attacker.stunKind = 'counter';
+      attacker.move = null; attacker.comboStep = 0; attacker.hitDone = true;
+      this.stance = null;
+      momentum += (this.isPlayer ? 12 : -12);
+      addBanner('回 风', '#7fb3ff', 44);
+      addFloater(attacker.x, GROUND - 132, '-' + c.dmg, '#7fb3ff', 18);
+      spawnSpark((this.x + attacker.x) / 2, GROUND - 62, '#7fb3ff', 26, 1.5);
+      shakeScreen(16, 12); hitstop = 8;
+      logAdv('回风反击 ' + c.dmg + ' 伤害', '架势生效 · 杀势 +12');
+      return;
+    }
+
+    /* 1) 弹反 */
+    if (parried) {
+      this.parryFlash = 14;
+      // 困兽之斗：弹反附带削韧，让它成为真正的翻盘引擎
+      if (this.isCornered) {
+        attacker.poise = Math.max(0, attacker.poise - PARRY_POISE_CORNERED);
+      }
+      const gain = this.isCornered ? PARRY_MOMENTUM_CORNERED : PARRY_MOMENTUM;
+      momentum += (this.isPlayer ? gain : -gain);
+      this.x += -6 * this.facing; attacker.x += 10 * attacker.facing;
+      attacker.state = 'hitstun'; attacker.stun = 22; attacker.stunKind = 'parry';
+      attacker.move = null; attacker.comboStep = 0;
+      addBanner('弹 反 !', '#5ee6a8', 46);
+      spawnSpark((this.x + attacker.x) / 2, GROUND - 60, '#5ee6a8', 26, 1.5);
+      shakeScreen(16, 12); hitstop = 12; slowmo = 10;
+      logAdv('弹反成功', '+' + gain + ' 杀势');
+      return;
+    }
+
+    /* 2) 命中或格挡伤害计算 */
+    const mods = attacker.momentumMods();
+    let dmg = move.dmg * (1 + (mods.dmg - 1));
+    // 连段递减
+    if (move.key === 'l2') dmg *= 0.95;
+    if (move.key === 'l3') dmg *= 0.90;
+    // 镇岳增益：下一次攻击伤害 ×1.4（仅对基础攻击生效，用后即消耗）
+    if (attacker.nextAtkMult > 1 && move.tier !== 'skill') {
+      dmg *= attacker.nextAtkMult;
+      attacker.nextAtkMult = 1;
+    }
+    // 贴身惩罚（长策）
+    if (attacker.cfg.closePenalty) {
+      const d = Math.abs(attacker.x - this.x);
+      if (d < attacker.cfg.closePenalty.range) dmg *= attacker.cfg.closePenalty.mult;
+    }
+    let poiseDmg = move.poise * mods.poise;
+    // 困兽之斗：连续型防守补偿——切断「被压制 -> 破防 -> 处决」的雪球链条
+    if (this.isCornered) poiseDmg *= CORNERED_POISE_TAKEN;
+
+    if (blocked) {
+      const br = this.isCornered ? BLOCK_REDUCE_CORNERED : BLOCK_REDUCE;
+      dmg *= (1 - br);
+      poiseDmg *= (move.guardCrush ? HEAVY_VS_BLOCK_POISE_MULT : BLOCK_POISE_MULT);
+    }
+
+    /* 3) 破防状态下的处决 */
+    if (isBroken) {
+      const ex = this.isCornered ? EXECUTE_DMG_CORNERED : EXECUTE_DMG;
+      this.hp = Math.max(0, this.hp - ex);
+      addBanner('处 决', '#ff6b7a', 52);
+      spawnSpark(this.x, GROUND - 70, '#ff6b7a', 40, 2.2);
+      shakeScreen(26, 16); hitstop = 10; slowmo = 14;
+      this.stun = 0; this.setState('idle'); this.poise = MAX_POISE * 0.3;
+      addFloater(this.x, GROUND - 140, '-' + ex, '#ff6b7a', 22);
+      logAdv('处决 ' + move.name, ex + ' 伤害');
+      return;
+    }
+
+    this.hp = Math.max(0, this.hp - dmg);
+    this.poise = Math.max(0, this.poise - poiseDmg);
+    this.flash = 6;
+    if (blocked) this.blockFlash = 10;
+
+    /* 4) 杀势（多段招式按段数摊薄，避免一次绝技推满杀势条） */
+    let mg;
+    if (blocked) mg = 3;
+    else if (move.hits > 1) mg = 3;                    // 6 段 × 3 = 18
+    else if (move.key === 'ult') mg = 14;
+    else if (move.key === 'heavy') mg = 10;
+    else if (move.key === 'launch') mg = 7;
+    else mg = 6;
+    momentum += (attacker.isPlayer ? mg : -mg);
+
+    /* 5) 硬直 / 击退
+       霸体：可吸收「轻档」攻击造成的僵直（仍会掉血掉韧），重档与绝技照常生效。 */
+    const armorHolds = this.armored && move.tier === 'light';
+    const kbScale = attacker.cfg.knockbackScale || 1.0;
+    if (armorHolds) {
+      addBanner('霸 体', '#ff9f5a', 30);
+    } else if (blocked) {
+      if (move.guardCrush) {
+        // 架崩：中断格挡，24 帧硬直
+        this.setState('hitstun'); this.stun = 24; this.stunKind = 'guardcrush'; this.blockFrames = 0;
+        addBanner('架 崩', '#ff9f5a', 42);
+      } else {
+        this.setState('hitstun'); this.stun = move.blockstun; this.stunKind = 'blockstun';
+        this.x += move.knockback * 0.25 * kbScale * attacker.facing;
+      }
+    } else {
+      this.setState('hitstun'); this.stun = move.hitstun; this.stunKind = 'hit';
+      this.x += move.knockback * kbScale * attacker.facing;
+      if (move.key === 'launch') this.airborne = 20;
+    }
+
+    /* 6) 韧性归零 -> 由 enterBreakCheck 统一处理 */
+
+    /* 7) 反馈 */
+    const hx = (this.x + attacker.x) / 2, hy = GROUND - 72;
+    spawnSpark(hx, hy, blocked ? '#9fb8ff' : '#ffd166', blocked ? 12 : 22, blocked ? 0.8 : 1.4);
+    addFloater(this.x, GROUND - 130, '-' + Math.round(dmg), blocked ? '#9fb8ff' : '#ffd166', blocked ? 14 : 17);
+    shakeScreen(blocked ? 7 : (move.key === 'heavy' ? 24 : 13), blocked ? 5 : (move.key === 'heavy' ? 14 : 9));
+    hitstop = blocked ? 4 : (move.key === 'heavy' ? 6 : 3);
+    // 多段招式只在第 1 段记录，避免刷屏
+    if (!(move.hits > 1) || attacker.hitSegment <= 1) {
+      logAdv((blocked ? '被格挡 ' : '命中 ') + move.name,
+             '有利帧 ' + fmtSigned(blocked ? move.advBlock : move.advHit));
+    }
+  }
+
+  enterBreakCheck() {
+    if (this.poise <= 0 && this.state !== 'break') this.enterBreak();
+  }
+
+  clamp() { this.x = Math.max(90, Math.min(W - 90, this.x)); }
+
+  draw(ctx, opp) {
+    const cx = this.x, by = GROUND;
+    const dir = this.facing;
+    const c = this.cfg;
+
+    // 影子
+    ctx.save();
+    ctx.globalAlpha = .32;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(cx, by + 3, c.bodyW * 1.05, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // 无敌帧提示
+    const isInvuln = (this.state === 'dodge' && this.dodgeFrames >= 5 &&
+                      this.dodgeFrames <= 5 + c.invulnFrames - 1) || worldFrame < this.invulnUntil;
+
+    // 身体
+    let lean = 0, color = c.color;
+    if (this.state === 'attack' && this.move) {
+      const p = this.mf / this.move.total;
+      lean = Math.sin(Math.min(1, p * 1.6) * Math.PI) * 9 * dir;
+    }
+    if (this.state === 'hitstun') { color = '#ff8a95'; lean = -7 * dir; }
+    if (this.state === 'break')   { color = '#ff5a6a'; lean = -13 * dir; }
+    if (this.parryFlash > 0)      { color = '#5ee6a8'; }
+    if (isInvuln)                 { ctx.globalAlpha = .45; }
+
+    const wob = this.state === 'break' ? Math.sin(worldFrame * .7) * 4 : 0;
+    const bx = cx + lean, bTop = by - c.bodyH;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    roundRect(ctx, bx - c.bodyW / 2, bTop, c.bodyW, c.bodyH - 16, 8);
+    ctx.fill();
+    // 头
+    ctx.beginPath(); ctx.arc(bx + wob * 0.4, bTop - 13, 12, 0, Math.PI * 2); ctx.fill();
+    // 腿
+    ctx.strokeStyle = color; ctx.lineWidth = 7; ctx.lineCap = 'round';
+    const legSwing = (this.state === 'idle' ? Math.sin(this.anim * .06) * 5 : 0);
+    ctx.beginPath();
+    ctx.moveTo(bx - 6, by - 18); ctx.lineTo(bx - 7 - legSwing, by - 1);
+    ctx.moveTo(bx + 6, by - 18); ctx.lineTo(bx + 7 + legSwing, by - 1);
+    ctx.stroke();
+
+    // 武器
+    this.drawWeapon(ctx, bx, bTop, dir);
+    ctx.globalAlpha = 1;
+
+    // 格挡盾
+    if (this.state === 'block') {
+      const a = this.blockFlash > 0 ? .85 : .42;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = this.blockFrames < this.parryWindow() ? '#5ee6a8' : '#9fb8ff';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(cx + dir * 16, by - 44, 34, -Math.PI * 0.55, Math.PI * 0.55);
+      ctx.stroke();
+      ctx.restore();
+    }
+    // 破防提示
+    if (this.state === 'break') {
+      ctx.save();
+      ctx.fillStyle = '#ff5a6a'; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('破防 ' + this.stun, cx, bTop - 34);
+      ctx.restore();
+    }
+    // 霸体提示
+    if (this.armored) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,159,90,.9)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, by - c.bodyH / 2, c.bodyH * .62, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+    // 困兽之斗
+    if (this.isCornered && this.hp > 0) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,90,106,.55)'; ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath(); ctx.arc(cx, by - c.bodyH / 2, c.bodyH * .78, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  drawWeapon(ctx, bx, bTop, dir) {
+    const c = this.cfg;
+    const hy = bTop + 22;
+    let ang = -0.5;               // 默认持械角
+    let len = c.weapon;
+    const M = this.move;
+
+    if (this.state === 'attack' && M) {
+      const s = M.startup, a = M.active, r = M.recovery;
+      if (this.mf <= s) {                       // 起手：向后蓄力
+        const p = this.mf / s;
+        ang = -0.5 - p * 1.7;
+      } else if (this.mf <= s + a) {            // 判定：挥出
+        const p = (this.mf - s) / a;
+        if (M.swing === 'up') ang = -2.2 + p * 2.6;
+        else if (M.swing === 'ult') ang = -2.4 + p * 3.2;
+        else ang = -2.2 + p * 2.9;
+      } else {                                   // 收招：归位
+        const p = (this.mf - s - a) / r;
+        ang = 0.7 - p * 1.2;
+      }
+    } else if (this.state === 'block') {
+      ang = -1.5;
+    } else if (this.state === 'hitstun' || this.state === 'break') {
+      ang = 0.9;
+    } else {
+      ang = -0.5 + Math.sin(this.anim * .05) * 0.06;
+    }
+
+    ctx.save();
+    ctx.translate(bx + dir * 8, hy);
+    ctx.scale(dir, 1);
+    ctx.rotate(ang);
+    // 判定帧高亮
+    const inActive = this.state === 'attack' && M && this.mf > M.startup && this.mf <= M.startup + M.active;
+    ctx.strokeStyle = inActive ? '#fff2c4' : (this.parryFlash > 0 ? '#5ee6a8' : c.color);
+    ctx.lineWidth = inActive ? 7 : 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len, 0); ctx.stroke();
+    // 护手
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(6, -7); ctx.lineTo(6, 7); ctx.stroke();
+    ctx.restore();
+
+    // 判定框（调试）
+    if (DEBUG && inActive) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,90,106,.85)';
+      ctx.lineWidth = 2;
+      const x0 = dir > 0 ? bx : bx - c.range;
+      ctx.strokeRect(x0, GROUND - c.bodyH - 26, c.range, c.bodyH + 26);
+      ctx.fillStyle = 'rgba(255,90,106,.10)';
+      ctx.fillRect(x0, GROUND - c.bodyH - 26, c.range, c.bodyH + 26);
+      ctx.restore();
+    }
+  }
+}
+
+/* ------------------------- 工具函数 ------------------------- */
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function fmtSigned(n) { return (n > 0 ? '+' : '') + n; }
+function shakeScreen(mag, dur) {
+  shake.mag = Math.max(shake.mag, mag); shake.t = Math.max(shake.t, dur); shake.dur = shake.t;
+}
+function spawnSpark(x, y, color, n, scale) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = (1.6 + Math.random() * 5) * scale;
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1.6,
+      life: 14 + Math.random() * 16, max: 30, color, size: (1.4 + Math.random() * 2.6) * scale });
+  }
+  particles.push({ x, y, ring: true, life: 12, max: 12, color, size: 8 * scale });
+}
+function addFloater(x, y, text, color, size) {
+  floaters.push({ x, y, text, color, size, life: 46, max: 46, vy: -1.5 });
+}
+function addBanner(text, color, size) { banner = { text, color, size, life: 40, max: 40 }; }
+function logAdv(label, detail) {
+  advantageLog.unshift({ label, detail, t: worldFrame });
+  if (advantageLog.length > 9) advantageLog.pop();
+}
+
+/* ------------------------- AI ------------------------- */
+const AI_LEVELS = [
+  { name:'简单', reaction:20, parryChance:0.05, dodgeChance:0.10, tradeChance:0.05, aggression:0.35, think:14, skillRate:0.35 },
+  { name:'普通', reaction:13, parryChance:0.20, dodgeChance:0.22, tradeChance:0.14, aggression:0.52, think:9,  skillRate:0.70 },
+  { name:'困难', reaction:8,  parryChance:0.42, dodgeChance:0.30, tradeChance:0.22, aggression:0.68, think:6,  skillRate:1.00 },
+];
+
+/* 技能按用途分类，决定 AI 什么时候该放它 */
+function aiSkillKind(m) {
+  if (m.counter || m.armorStance) return 'defensive';   // 回风 / 镇岳
+  if (m.zone || m.landing)        return 'control';     // 枪阵 / 横驱
+  if (m.hits > 1 || m.rangeMult)  return 'offensive';   // 连环刺 / 荡寇
+  return 'mobility';                                     // 踏雪 / 影步
+}
+let aiLevel = 1;
+
+function updateAI(ai, me) {
+  const L = AI_LEVELS[aiLevel];
+
+  /* 被打断/硬直中：清空意图 */
+  if (ai.stun > 0 || ai.state === 'break' || ai.state === 'hitstun') {
+    ai.threat = null; ai.moveDir = 0; ai.aiBlockUntil = -1;
+    return;
+  }
+
+  const dist  = Math.abs(me.x - ai.x);
+  const A = ai.cfg, M = me.cfg;
+  const dirTo = Math.sign(me.x - ai.x) || 1;   // 指向玩家的屏幕方向
+  const meAttacking = me.state === 'attack' && me.move;
+
+  /* 格挡到时间自动松开 */
+  if (ai.state === 'block' && worldFrame > ai.aiBlockUntil) {
+    ai.setState('idle'); ai.blockFrames = 0;
+  }
+
+  /* ---- 威胁感知：对手进入起手阶段 ---- */
+  if (meAttacking && me.mf <= me.move.startup && dist <= M.range + 16) {
+    const id = me.mf + '#' + me.lastMoveName;
+    if (!ai.threat || ai.threat.id !== id) {
+      ai.threat = { id, at: worldFrame, move: me.move };
+    }
+  } else if (!meAttacking) {
+    ai.threat = null;
+  }
+
+  /* ---- 反应：达到反应延迟后才允许做防守决策 ---- */
+  if (ai.threat && worldFrame - ai.threat.at >= L.reaction) {
+    const th = ai.threat; ai.threat = null;
+    const mv = th.move;
+    if (dist <= M.range + 16 && ai.canAct() && ai.state !== 'dodge') {
+      const r = Math.random();
+      if (r < L.parryChance) { ai.holdBlock(9); return; }                 // 瞄弹反（8~12 帧窗口）
+      if (r < L.parryChance + L.dodgeChance) { ai.tryDodge(-dirTo); return; }
+      if (r < L.parryChance + L.dodgeChance + L.tradeChance) {
+        // 抢帧：只有自身起手更快时才划算
+        if (ai.moves.l1.startup < mv.startup) { ai.startMove('l1'); return; }
+      }
+      ai.holdBlock(mv.total); return;                                     // 退而格挡
+    }
+  }
+
+  /* ---- 思考节拍：移动意图是持久的，只在思考帧改写 ---- */
+  if (ai.thinkCd > 0) { ai.thinkCd--; return; }
+  ai.thinkCd = L.think;
+
+  if (ai.state === 'attack' || ai.state === 'dodge' || ai.state === 'block') return;
+
+  /* ---- 武学技能的使用决策 ---- */
+  const d2 = Math.abs(me.x - ai.x);
+  for (const sk of ['s1', 's2']) {
+    const m = ai.moves[sk];
+    if (!m || (ai.cd[sk] || 0) > 0) continue;
+    const kind = aiSkillKind(m);
+    let use = 0;
+    if (kind === 'defensive')      use = (meAttacking && d2 <= M.range + 40) ? 0.40 * L.skillRate : 0;
+    else if (kind === 'offensive') use = (d2 <= A.range * 1.2) ? 0.55 * L.skillRate : 0;
+    else if (kind === 'control')   use = (d2 <= A.range * 1.6) ? 0.45 * L.skillRate : 0;
+    else /* mobility */            use = (d2 > A.range * 1.5 || ai.isCornered) ? 0.50 * L.skillRate : 0;
+    if (use > 0 && Math.random() < use) { ai.startMove(sk); return; }
+  }
+
+  if (dist > A.range + 30) {
+    ai.moveDir = dirTo;                                   // 靠近
+  } else if (dist < A.range * 0.5 && A.closePenalty) {
+    ai.moveDir = -dirTo;                                  // 长策：被贴身则拉开
+  } else {
+    ai.moveDir = 0;
+    const r = Math.random();
+    if (r < L.aggression) {
+      if (ai.isDominant) { ai.startMove('ult'); return; }
+      const r2 = Math.random();
+      if (r2 < 0.50)      ai.startMove('l1');
+      else if (r2 < 0.72) ai.startMove('l2');
+      else if (r2 < 0.86) ai.startMove('launch');
+      else                ai.startMove('heavy');
+    } else if (r < L.aggression + 0.14) {
+      ai.holdBlock(30);
+    } else if (r < L.aggression + 0.22) {
+      ai.tryDodge(-dirTo);
+    }
+  }
+}
+Fighter.prototype.holdBlock = function (frames) {
+  if (!this.canAct()) return;
+  if (this.state !== 'block') {
+    this.setState('block'); this.blockFrames = 0;
+    this.parryUntil = worldFrame + this.parryWindow();   // 起手 8f（困兽时 12f）内为弹反窗口
+  }
+  this.aiBlockUntil = worldFrame + frames;
+  this.aiWantsBlock = true;
+};
+Fighter.prototype.tryBlock = function () {
+  if (!this.canAct()) return;
+  if (this.state !== 'block') {
+    this.setState('block'); this.blockFrames = 0;
+    this.parryUntil = worldFrame + this.parryWindow();
+  }
+};
+Fighter.prototype.tryDodge = function (dir) {
+  if (!this.canAct()) return;
+  this.setState('dodge'); this.dodgeFrames = 0;
+  this.dodgeDir = dir;
+  this.blockFrames = 0;
+};
+
+/* ------------------------- 玩家输入 → 动作 ------------------------- */
+function handlePlayerInput(p) {
+  if (p.stun > 0 || p.state === 'break') return;
+
+  // 缓冲
+  if (consumePressed('light'))  p.buffer = { k:'light',  f: worldFrame };
+  if (consumePressed('heavy'))  p.buffer = { k:'heavy',  f: worldFrame };
+  if (consumePressed('launch')) p.buffer = { k:'launch', f: worldFrame };
+  if (consumePressed('ult'))    p.buffer = { k:'ult',    f: worldFrame };
+  if (consumePressed('skill1')) p.buffer = { k:'skill1', f: worldFrame };
+  if (consumePressed('skill2')) p.buffer = { k:'skill2', f: worldFrame };
+
+  // 格挡（按住）
+  if (keys['block']) {
+    if (p.canAct() && p.state !== 'block') { p.tryBlock(); }
+    if (p.state === 'block') { /* 已在格挡 */ }
+  } else {
+    if (p.state === 'block') { p.setState('idle'); p.blockFrames = 0; }
+  }
+
+  // 闪避
+  if (consumePressed('dodge') && p.canAct() && p.state !== 'block') {
+    const dir = keys['left'] ? -1 : keys['right'] ? 1 : -1;
+    p.tryDodge(dir);
+    return;
+  }
+
+  // 攻击（有缓冲且可行动时执行）
+  if (p.buffer && worldFrame - p.buffer.f <= INPUT_BUFFER && p.canAct() && p.state !== 'block') {
+    const k = p.buffer.k;
+    if (k === 'light') {
+      const step = p.state === 'attack' ? (p.move.next || 'l1') : 'l1';
+      p.startMove(step);
+    } else if (k === 'heavy') {
+      p.startMove('heavy');
+    } else if (k === 'launch') {
+      p.startMove('launch');
+    } else if (k === 'ult') {
+      if (p.isDominant) { p.startMove('ult'); }
+      else { addBanner('杀势不足 60', '#7c8aa3', 26); }
+    } else if (k === 'dodge') {
+      // 顿帧期间缓冲下来的闪避
+      p.tryDodge(keys['left'] ? -1 : keys['right'] ? 1 : -1);
+    } else if (k === 'skill1' || k === 'skill2') {
+      // 输入键名 skill1/skill2 与招式表键名 s1/s2 不同，必须显式映射——
+      // 否则 startMove 找不到招式会静默返回 false，技能永远放不出来。
+      const mkey = (k === 'skill1') ? 's1' : 's2';
+      if (!p.startMove(mkey)) {
+        p.buffer = { k: k, f: worldFrame };   // 冷却中：保留缓冲，冷却好了立刻放
+        return;
+      }
+    }
+    p.buffer = null;
+    return;
+  }
+
+  // 移动
+  if (p.state === 'idle' || p.state === 'block') {
+    let mv = 0;
+    if (keys['left'])  mv -= 1;
+    if (keys['right']) mv += 1;
+    if (mv !== 0) {
+      const mods = p.momentumMods();
+      const slow = zoneSlowAt(p.x, p);                 // 枪阵减速
+      const spd = (p.state === 'block' ? p.cfg.walk * 0.45 : p.cfg.run * 0.78) * mods.spd * (1 - slow);
+      p.x += mv * spd * DT;
+    }
+  }
+}
+
+/* ------------------------- 命中结算 ------------------------- */
+function resolveHits(p, e) {
+  /* 先收集双方命中，再统一结算。
+     若按固定顺序"边判边结算"，先结算的一方（玩家）会在同帧交换中白赢，
+     这是不公平的——原型与仿真都必须避免。 */
+  const pending = [];
+  for (const [atk, def] of [[p, e], [e, p]]) {
+    if (atk.state !== 'attack' || !atk.move) continue;
+    const m = atk.move;
+    const inActive = atk.mf > m.startup && atk.mf <= m.startup + m.active;
+    if (!inActive) continue;
+
+    /* 多段招式（如影梭绝技·千影）：按 hitInterval 允许重复命中 */
+    const multi = m.hits > 1;
+    if (atk.hitDone) {
+      const canRehit = multi && atk.hitSegment < m.hits &&
+                       atk.mf >= atk.lastHitFrame + m.hitInterval;
+      if (!canRehit) continue;
+    }
+
+    const dist = Math.abs(def.x - atk.x);
+    // 横扫类技能（荡寇）带 rangeMult，覆盖更宽
+    if (dist > atk.cfg.range * (m.rangeMult || 1)) continue;
+
+    // 无敌帧
+    const invuln = (def.state === 'dodge' && def.dodgeFrames >= 5 &&
+                    def.dodgeFrames <= 5 + def.cfg.invulnFrames - 1) || worldFrame < def.invulnUntil;
+    if (invuln) {
+      if (atk.isPlayer) { momentum -= 4; logAdv('被闪避 ' + m.name, '杀势 −4'); }
+      else { momentum += 4; logAdv('被闪避 ' + m.name, '杀势 +4'); }
+      atk.hitDone = true; atk.hitSegment = m.hits || 1;
+      spawnSpark(def.x, GROUND - 60, '#5f6d86', 8, .7);
+      continue;
+    }
+
+    // 格挡 / 弹反判定
+    let blocked = false, parried = false;
+    if (def.state === 'block') {
+      const isParry = worldFrame <= def.parryUntil;
+      if (isParry) { parried = true; }
+      else { blocked = true; }
+    }
+    pending.push({ atk, def, m, blocked, parried });
+  }
+  for (const h of pending) {
+    h.atk.hitDone = true; h.atk.hitFrame = h.atk.mf;
+    h.atk.lastHitFrame = h.atk.mf; h.atk.hitSegment++;
+    lastCombatFrame = worldFrame;
+    h.def.receiveHit(h.atk, h.m, h.blocked, h.parried);
+  }
+}
+
+/* ------------------------- 主循环步进 ------------------------- */
+function step() {
+  /* 顿帧（Hitstop）：冻结战斗逻辑与帧计数器。
+     两点必须同时成立，否则会静默破坏手感：
+       ① 帧计数器 worldFrame 不推进 —— 否则 8f 输入缓冲会被顿帧吃掉；
+       ② 玩家输入仍须捕获进缓冲区 —— 否则顿帧期间按下的键被直接丢弃，
+          玩家会得到"我明明按了但没反应"的体验（顿帧 3~12 帧 = 50~200ms）。
+     双方对称冻结，因此不改变有利帧（见 06_打击感与表现规范 §4.4）。 */
+  if (hitstop > 0) {
+    hitstop--;
+    captureInputDuringHitstop();
+    return;
+  }
+  worldFrame++;
+
+  if (slowmo > 0) slowmo--;
+
+  const p = player, e = enemy;
+
+  // AI 决策
+  updateAI(e, p);
+  // AI 位移：moveDir 是持久意图，每帧生效（不受思考节拍影响）
+  if (e.moveDir && (e.state === 'idle' || e.state === 'block')) {
+    const mods = e.momentumMods();
+    const slow = zoneSlowAt(e.x, e);
+    e.x += e.moveDir * e.cfg.run * 0.72 * mods.spd * (1 - slow) * DT;
+  }
+  handlePlayerInput(p);
+  clearPressed();
+
+  p.update(e);
+  e.update(p);
+
+  // 面向
+  p.facing = p.x <= e.x ? 1 : -1;
+  e.facing = e.x <= p.x ? 1 : -1;
+
+  // 防重叠
+  const gap = 56;
+  if (Math.abs(p.x - e.x) < gap) {
+    const mid = (p.x + e.x) / 2;
+    p.x = mid - gap / 2 * (p.x <= e.x ? 1 : -1);
+    e.x = mid + gap / 2 * (p.x <= e.x ? 1 : -1);
+  }
+  p.clamp(); e.clamp();
+
+  resolveHits(p, e);
+  updateZones();
+  p.enterBreakCheck(); e.enterBreakCheck();
+
+  // 杀势衰减
+  if (worldFrame - lastCombatFrame > MOMENTUM_DECAY_DELAY) {
+    if (momentum > 0) momentum = Math.max(0, momentum - MOMENTUM_DECAY);
+    else if (momentum < 0) momentum = Math.min(0, momentum + MOMENTUM_DECAY);
+  }
+  momentum = Math.max(-100, Math.min(100, momentum));
+
+  // 特效更新
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const q = particles[i]; q.life--;
+    if (q.ring) { q.size += 3.2; }
+    else { q.x += q.vx; q.y += q.vy; q.vy += 0.34; q.vx *= 0.965; }
+    if (q.life <= 0) particles.splice(i, 1);
+  }
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i]; f.life--; f.y += f.vy; f.vy *= 0.93;
+    if (f.life <= 0) floaters.splice(i, 1);
+  }
+  if (banner) { banner.life--; if (banner.life <= 0) banner = null; }
+  if (shake.t > 0) {
+    shake.t--;
+    const k = shake.mag * (shake.t / (shake.dur || 1));
+    shake.x = (Math.random() - .5) * k * 2;
+    shake.y = (Math.random() - .5) * k * 2;
+  } else { shake.x = shake.y = 0; shake.mag = 0; }
+
+  // 胜负
+  if (!gameOver && (p.hp <= 0 || e.hp <= 0)) endGame();
+}
+
+/* ------------------------- 渲染 ------------------------- */
+let DEBUG = false;
+function render() {
+  const ctx = drawCtx;
+  ctx.save();
+  ctx.clearRect(0, 0, W, H);
+
+  // 背景
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0d1119'); g.addColorStop(.62, '#141a25'); g.addColorStop(1, '#0a0d13');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // 场地刻度（距离参考）
+  ctx.save();
+  ctx.globalAlpha = .13; ctx.strokeStyle = '#7fb3ff'; ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += 50) {
+    ctx.beginPath(); ctx.moveTo(x, GROUND); ctx.lineTo(x, GROUND + (x % 100 === 0 ? 16 : 8)); ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.translate(shake.x, shake.y);
+
+  // 地面
+  ctx.fillStyle = '#0f141d';
+  ctx.fillRect(-40, GROUND, W + 80, 4);
+  ctx.fillStyle = 'rgba(255,255,255,.025)';
+  ctx.fillRect(-40, GROUND + 4, W + 80, H - GROUND);
+
+  // 场域（长策「枪阵」）
+  for (const z of zones) {
+    const left = z.until - worldFrame;
+    const fade = Math.min(1, left / 45);              // 消散淡出
+    ctx.save();
+    ctx.globalAlpha = 0.16 * fade;
+    ctx.fillStyle = '#d0a4ff';
+    ctx.fillRect(z.x - z.radius, GROUND - 96, z.radius * 2, 100);
+    ctx.globalAlpha = 0.75 * fade;
+    ctx.strokeStyle = '#d0a4ff'; ctx.lineWidth = 2;
+    ctx.setLineDash([7, 6]);
+    ctx.beginPath();
+    ctx.ellipse(z.x, GROUND + 2, z.radius, 16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // 阵中枪尖
+    ctx.globalAlpha = 0.55 * fade;
+    ctx.strokeStyle = '#d0a4ff'; ctx.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      const px = z.x - z.radius * 0.72 + (z.radius * 1.44) * (i / 4);
+      const bob = Math.sin((worldFrame + i * 13) * 0.09) * 3;
+      ctx.beginPath(); ctx.moveTo(px, GROUND); ctx.lineTo(px, GROUND - 30 - bob); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 角色
+  enemy.draw(ctx, player);
+  player.draw(ctx, enemy);
+
+  // 粒子
+  for (const q of particles) {
+    const a = q.life / q.max;
+    ctx.globalAlpha = Math.max(0, a);
+    if (q.ring) {
+      ctx.strokeStyle = q.color; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.size, 0, Math.PI * 2); ctx.stroke();
+    } else {
+      ctx.fillStyle = q.color;
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.size * a + .6, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  // 伤害数字
+  ctx.textAlign = 'center';
+  for (const f of floaters) {
+    const a = Math.min(1, f.life / 18);
+    ctx.globalAlpha = a;
+    ctx.font = '900 ' + f.size + 'px "Microsoft YaHei",sans-serif';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.8)';
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color; ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  drawHUD(ctx);
+}
+
+function drawHUD(ctx) {
+  const p = player, e = enemy;
+
+  /* --- 双方血条 --- */
+  drawFighterBar(ctx, 40, 30, 480, p, false);
+  drawFighterBar(ctx, W - 40 - 480, 30, 480, e, true);
+
+  /* --- 中央杀势条 --- */
+  const mx = W / 2, my = 52, mw = 300, mh = 16;
+  ctx.save();
+  // 底
+  ctx.fillStyle = '#151b26';
+  roundRect(ctx, mx - mw / 2, my, mw, mh, 8); ctx.fill();
+  // 玩家侧（右→向左填充 表示玩家优势在右侧？用居中双向更直观）
+  const half = mw / 2;
+  const val = momentum / 100;                 // -1 ~ 1
+  if (val > 0) {
+    ctx.fillStyle = '#7fb3ff';
+    roundRect(ctx, mx, my, half * val, mh, 8); ctx.fill();
+  } else if (val < 0) {
+    ctx.fillStyle = '#ff9f5a';
+    roundRect(ctx, mx + half * val, my, -half * val, mh, 8); ctx.fill();
+  }
+  // 阈值刻度 30/60/90
+  ctx.strokeStyle = 'rgba(255,255,255,.24)'; ctx.lineWidth = 1;
+  for (const th of [30, 60, 90]) {
+    for (const s of [-1, 1]) {
+      const xx = mx + half * (th / 100) * s;
+      ctx.beginPath(); ctx.moveTo(xx, my - 3); ctx.lineTo(xx, my + mh + 3); ctx.stroke();
+    }
+  }
+  ctx.beginPath(); ctx.moveTo(mx, my - 5); ctx.lineTo(mx, my + mh + 5); ctx.stroke();
+  // 文本
+  ctx.textAlign = 'center';
+  ctx.font = '700 11px "Microsoft YaHei",sans-serif';
+  ctx.fillStyle = '#63708a';
+  ctx.fillText('杀 势', mx, my - 8);
+  const absM = Math.abs(momentum);
+  const seg = absM >= 90 ? '碾压' : absM >= 60 ? '掌控' : absM >= 30 ? '压制' : '均势';
+  const col = absM >= 60 ? (momentum > 0 ? '#7fb3ff' : '#ff9f5a') : '#63708a';
+  ctx.fillStyle = col;
+  ctx.font = '700 12px "Microsoft YaHei",sans-serif';
+  ctx.fillText((momentum > 0 ? '玩家 ' : momentum < 0 ? 'AI ' : '') + seg + '  (' + Math.round(absM) + ')', mx, my + mh + 17);
+  ctx.restore();
+
+  /* --- Banner --- */
+  if (banner) {
+    const a = Math.min(1, banner.life / 14);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.textAlign = 'center';
+    ctx.font = '900 ' + banner.size + 'px "Microsoft YaHei",sans-serif';
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.85)';
+    ctx.strokeText(banner.text, W / 2, 190);
+    ctx.fillStyle = banner.color; ctx.fillText(banner.text, W / 2, 190);
+    ctx.restore();
+  }
+
+  /* --- 输入显示条（格斗游戏风格） --- */
+  drawInputDisplay(ctx);
+
+  /* --- 技能栏 --- */
+  drawSkillBar(ctx, p);
+
+  /* --- 顶部标题 --- */
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.font = '600 11px "Microsoft YaHei",sans-serif';
+  ctx.fillStyle = '#3f4a5e';
+  ctx.fillText('《止戈》战斗原型 · 60FPS 帧精确 · 黄渊 / 雷火战斗策划作品集', W / 2, H - 16);
+  ctx.restore();
+}
+
+function drawFighterBar(ctx, x, y, w, f, mirrored) {
+  const c = f.cfg;
+  ctx.save();
+  // 名字
+  ctx.font = '700 15px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = mirrored ? 'right' : 'left';
+  ctx.fillStyle = c.color;
+  const nx = mirrored ? x + w : x;
+  ctx.fillText(c.name, nx, y - 6);
+  ctx.font = '400 11px "Microsoft YaHei",sans-serif';
+  ctx.fillStyle = '#5f6d86';
+  ctx.fillText(c.sub + '   ·   抢帧序 ' + (c.id === 'yingsuo' ? '1' : c.id === 'zhirui' ? '2' : c.id === 'changce' ? '3' : '4'), nx, y + 13);
+
+  // HP 底
+  const by = y + 22, bh = 20;
+  ctx.fillStyle = '#141a24';
+  roundRect(ctx, x, by, w, bh, 4); ctx.fill();
+
+  // ghost
+  const gw = w * (f.hpGhost / MAX_HP);
+  ctx.fillStyle = 'rgba(255,107,122,.45)';
+  roundRect(ctx, mirrored ? x + w - gw : x, by, gw, bh, 4); ctx.fill();
+
+  // HP
+  const hw = w * (f.hp / MAX_HP);
+  const hpCol = f.hp / MAX_HP > .35 ? (f.isPlayer ? '#4fa3ff' : '#ff8a3d') : '#ff4d5e';
+  ctx.fillStyle = hpCol;
+  roundRect(ctx, mirrored ? x + w - hw : x, by, hw, bh, 4); ctx.fill();
+
+  // 数字
+  ctx.font = '700 12px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,.92)';
+  ctx.fillText(Math.ceil(f.hp) + ' / ' + MAX_HP, x + w / 2, by + 15);
+
+  // 韧性条
+  const py = by + bh + 4, ph = 7;
+  ctx.fillStyle = '#141a24';
+  roundRect(ctx, x, py, w, ph, 3); ctx.fill();
+  const pw = w * (f.poise / MAX_POISE);
+  ctx.fillStyle = f.poise < 30 ? '#ffd166' : '#c9a227';
+  roundRect(ctx, mirrored ? x + w - pw : x, py, pw, ph, 3); ctx.fill();
+  ctx.font = '600 10px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = mirrored ? 'right' : 'left';
+  ctx.fillStyle = '#5f6d86';
+  ctx.fillText('韧性', nx, py + ph + 11);
+  ctx.restore();
+}
+
+/* 输入历史条 */
+const inputHist = [];
+function pushInput(sym) { inputHist.unshift({ sym, t: worldFrame }); if (inputHist.length > 12) inputHist.pop(); }
+
+/* 技能栏：显示两个武学技能的冷却与状态 */
+function drawSkillBar(ctx, f) {
+  const skills = [f.moves.s1, f.moves.s2].filter(Boolean);
+  if (!skills.length) return;
+  const x0 = 1280 - 40 - skills.length * 96, y0 = H - 96;
+  ctx.save();
+  ctx.font = '600 10px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'left'; ctx.fillStyle = '#3f4a5e';
+  ctx.fillText('武 学', x0, y0 - 8);
+  skills.forEach((m, i) => {
+    const bx = x0 + i * 96, bw = 88, bh = 52;
+    const cdLeft = f.cd[m.key] || 0;
+    const pct = m.cd ? Math.max(0, cdLeft / m.cd) : 0;
+    const ready = cdLeft <= 0;
+    ctx.fillStyle = ready ? '#152036' : '#12161f';
+    roundRect(ctx, bx, y0, bw, bh, 7); ctx.fill();
+    ctx.strokeStyle = ready ? f.cfg.color : '#252c3a';
+    ctx.lineWidth = ready ? 1.8 : 1;
+    roundRect(ctx, bx, y0, bw, bh, 7); ctx.stroke();
+    // 冷却遮罩（自上而下退去）
+    if (!ready) {
+      ctx.save();
+      ctx.beginPath(); roundRect(ctx, bx, y0, bw, bh, 7); ctx.clip();
+      ctx.fillStyle = 'rgba(0,0,0,.62)';
+      ctx.fillRect(bx, y0, bw, bh * pct);
+      ctx.restore();
+    }
+    ctx.textAlign = 'left';
+    ctx.font = '700 13px "Microsoft YaHei",sans-serif';
+    ctx.fillStyle = ready ? '#e8edf5' : '#6b7a94';
+    ctx.fillText(m.name, bx + 9, y0 + 20);
+    ctx.font = '600 10px "Microsoft YaHei",sans-serif';
+    ctx.fillStyle = ready ? f.cfg.color : '#4a5568';
+    ctx.fillText('Q/E · ' + (m.cd / 60).toFixed(0) + 's', bx + 9, y0 + 36);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = ready ? '#5ee6a8' : '#7c8aa3';
+    ctx.font = '700 11px "Microsoft YaHei",sans-serif';
+    ctx.fillText(ready ? '就绪' : Math.ceil(cdLeft / 60) + 's', bx + bw - 9, y0 + 20);
+    ctx.textAlign = 'left';
+  });
+  ctx.restore();
+}
+function drawInputDisplay(ctx) {
+  ctx.save();
+  const x0 = 40, y0 = H - 78;
+  ctx.font = '600 11px "Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'left'; ctx.fillStyle = '#3f4a5e';
+  ctx.fillText('输 入', x0, y0 - 8);
+  for (let i = 0; i < Math.min(12, inputHist.length); i++) {
+    const it = inputHist[i];
+    const age = worldFrame - it.t;
+    if (age > 120) continue;
+    const a = Math.max(.16, 1 - age / 120);
+    const bx = x0 + i * 30;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#1a2130';
+    roundRect(ctx, bx, y0, 25, 25, 5); ctx.fill();
+    ctx.fillStyle = '#93a2ba';
+    ctx.font = '700 12px "Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(it.sym, bx + 12.5, y0 + 17);
+  }
+  ctx.restore();
+}
+
+/* ------------------------- 右侧数据面板 ------------------------- */
+const panel = document.getElementById('panel');
+function renderPanel() {
+  if (document.getElementById('stage').classList.contains('panel-off')) return;
+  const p = player, e = enemy;
+  const pv = p.advMomentum, mods = p.momentumMods();
+  const M = p.move;
+
+  let moveBlock = '<div class="k">（未出招）</div>';
+  if (p.state === 'attack' && M) {
+    let phase = '起手', ph = '#ffd166';
+    if (p.mf > M.startup && p.mf <= M.startup + M.active) { phase = '判定'; ph = '#ff6b7a'; }
+    else if (p.mf > M.startup + M.active) { phase = '收招'; ph = '#7fb3ff'; }
+    const pct = (n, d) => Math.round(n / d * 100);
+    moveBlock = `
+      <div class="mvname">${M.name}</div>
+      <div class="ref" style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:#1a2130;margin-bottom:6px">
+        <i style="display:block;width:${pct(M.startup, M.total)}%;background:#ffd166"></i>
+        <i style="display:block;width:${pct(M.active, M.total)}%;background:#ff6b7a"></i>
+        <i style="display:block;width:${pct(M.recovery, M.total)}%;background:#3f5a86"></i>
+      </div>
+      <div class="row"><span class="k">起手 / 判定 / 收招</span><b>${M.startup} / ${M.active} / ${M.recovery}</b></div>
+      <div class="row"><span class="k">总帧</span><b>${M.total}f</b></div>
+      <div class="row"><span class="k">当前帧 / 阶段</span><b style="color:${ph}">${p.mf} · ${phase}</b></div>
+      <div class="row"><span class="k">伤害 / 削韧</span><b>${M.dmg} / ${M.poise}</b></div>
+      <div class="row"><span class="k">命中有利帧</span><b class="${M.advHit >= 0 ? 'ok' : 'bad'}">${fmtSigned(M.advHit)}</b></div>
+      <div class="row"><span class="k">被格挡有利帧</span><b class="${M.advBlock >= 0 ? 'ok' : 'bad'}">${fmtSigned(M.advBlock)}</b></div>
+      ${M.cancel ? '<div class="row"><span class="k">取消窗口</span><b class="ok">命中后 ' + M.cancel + 'f 可接 ' + (M.next ? p.moves[M.next].name : '—') + '</b></div>' : ''}
+      ${M.guardCrush ? '<div class="row"><span class="k">特殊</span><b class="hl">架崩（击破格挡）</b></div>' : ''}
+      ${(M.armor || (p.cfg.armorFrom && M.key === 'heavy' && p.mf >= p.cfg.armorFrom)) ? '<div class="row"><span class="k">特殊</span><b class="hl">霸体生成中</b></div>' : ''}
+    `;
+  }
+
+  const stateName = {
+    idle:'待机', block:'格挡', attack:'攻击', dodge:'闪避',
+    hitstun:'受击硬直', break:'破 防'
+  }[p.state] || p.state;
+
+  const logs = advantageLog.length
+    ? advantageLog.map(l => `<div><span class="k">${l.label}</span> <span class="${/^\+/.test(l.detail) ? 'ok' : ''}">${l.detail}</span></div>`).join('')
+    : '<div class="k">（尚无交锋记录）</div>';
+
+  panel.innerHTML = `
+    <div class="ph">当前动作 · 实时帧数据</div>
+    ${moveBlock}
+
+    <div class="ph">玩家状态</div>
+    <div class="row"><span class="k">状态机</span><b>${stateName}</b></div>
+    <div class="row"><span class="k">血量 / 韧性</span><b>${Math.ceil(p.hp)} / ${Math.round(p.poise)}</b></div>
+    <div class="row"><span class="k">杀势（本人）</span><b class="${pv > 0 ? 'ok' : pv < 0 ? 'bad' : ''}">${fmtSigned(Math.round(pv))} · ${mods.name}</b></div>
+    <div class="row"><span class="k">伤害 / 移速倍率</span><b>×${mods.dmg.toFixed(2)} / ×${mods.spd.toFixed(2)}</b></div>
+    <div class="row"><span class="k">弹反窗口</span><b class="${p.isCornered ? 'hl' : ''}">${p.parryWindow()}f${p.isCornered ? '（困兽之斗）' : ''}</b></div>
+    <div class="row"><span class="k">绝技</span><b class="${p.isDominant ? 'ok' : 'k'}">${p.isDominant ? '可用（消耗 60 杀势）' : '需杀势 ≥ 60'}</b></div>
+
+    <div class="ph">交锋记录（有利帧）</div>
+    <div class="log">${logs}</div>
+
+    <div class="ph">职业参数</div>
+    <div class="row"><span class="k">攻击距离</span><b>${p.cfg.range}px</b></div>
+    <div class="row"><span class="k">轻击起手 / 重击起手</span><b>${p.moves.l1.startup}f / ${p.moves.heavy.startup}f</b></div>
+    <div class="row"><span class="k">闪避无敌帧</span><b>${p.cfg.invulnFrames}f</b></div>
+    <div class="row"><span class="k">伤害 / 削韧倍率</span><b>×${p.cfg.dmgScale.toFixed(2)} / ×${p.cfg.poiseScale.toFixed(2)}</b></div>
+    ${p.cfg.closePenalty ? '<div class="row"><span class="k">贴身惩罚</span><b class="bad">&lt;' + p.cfg.closePenalty.range + 'px 伤害 ×' + p.cfg.closePenalty.mult + '</b></div>' : ''}
+    ${p.cfg.armorFrom ? '<div class="row"><span class="k">霸体起始帧</span><b class="hl">重档招式第 ' + p.cfg.armorFrom + 'f 起</b></div>' : ''}
+
+    <div class="ph">武学技能</div>
+    ${['s1','s2'].map((k, i) => {
+      const m = p.moves[k]; if (!m) return '';
+      const left = p.cd[k] || 0;
+      const st = left > 0 ? '<b class="bad">冷却 ' + Math.ceil(left/60) + 's</b>' : '<b class="ok">就绪</b>';
+      const extra = m.counter ? '架势' + m.active + 'f · 受击反击 ' + m.counter.dmg + '伤/' + m.counter.poise + '削/' + m.counter.hitstun + 'f'
+                  : m.buffNext ? '架势 ' + m.active + 'f 免僵直，下次攻击 ×' + m.buffNext
+                  : m.zone ? '半径' + m.zone.radius + 'px · ' + (m.zone.duration/60) + 's · ' + m.zone.dps + '/s · 减速' + (m.zone.slow*100) + '%'
+                  : m.landing ? '后跳' + Math.abs(m.dashTo) + 'px + 落地 ' + m.landing.radius + 'px / ' + m.landing.dmg + '伤'
+                  : m.dashTo ? (m.dashTo > 0 ? '前突' : '后跳') + Math.abs(m.dashTo) + 'px · 无敌' + (m.invuln ? (m.invuln[1]-m.invuln[0]+1) : 0) + 'f'
+                  : m.hits > 1 ? m.hits + ' 段 × ' + m.dmg + '伤' : '';
+      return `<div class="row"><span class="k">${i===0?'Q':'E'} ${m.name} <span style="color:#4a5568">${m.startup}/${m.active}/${m.recovery}</span></span>${st}</div>
+              <div class="row" style="margin-top:-3px;margin-bottom:3px"><span class="k" style="font-size:10.5px">${extra}</span><span class="k" style="font-size:10.5px">CD ${(m.cd/60).toFixed(0)}s</span></div>`;
+    }).join('')}
+
+    <div class="ph">对局信息</div>
+    <div class="row"><span class="k">AI 难度</span><b>${AI_LEVELS[aiLevel].name}（反应 ${AI_LEVELS[aiLevel].reaction}f）</b></div>
+    <div class="row"><span class="k">已进行帧数</span><b>${worldFrame}f · ${(worldFrame / 60).toFixed(1)}s</b></div>
+    <div class="row"><span class="k">顿帧 / 震动</span><b>${hitstop}f / ${Math.round(shake.t)}</b></div>
+    <div class="row"><span class="k">距 离</span><b>${Math.round(Math.abs(p.x - e.x))}px</b></div>
+  `;
+}
+
+/* ------------------------- 游戏生命周期 ------------------------- */
+let player, enemy, gameOver = false, drawCtx;
+
+function startGame(heroIdx) {
+  const h = HEROES[heroIdx];
+  player = new Fighter(h, 440, 1, true);
+  const foeIdx = (heroIdx + 1) % 4;
+  enemy  = new Fighter(HEROES[foeIdx], 840, -1, false);
+  momentum = 0; worldFrame = 0; hitstop = 0; particles = []; floaters = [];
+  advantageLog = []; banner = null; gameOver = false; lastCombatFrame = 0;
+  zones = [];
+  inputHist.length = 0;
+  shake = { t:0, mag:0, x:0, y:0 };
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('over').classList.remove('on');
+}
+
+function endGame() {
+  gameOver = true;
+  const win = enemy.hp <= 0;
+  const ov = document.getElementById('over');
+  document.getElementById('overT').textContent = win ? '胜  利' : '败  北';
+  document.getElementById('overT').style.color = win ? '#7fb3ff' : '#ff6b7a';
+  const dur = (worldFrame / 60).toFixed(1);
+  document.getElementById('overS').innerHTML =
+    `对局时长 <b style="color:#e8edf5">${dur} 秒</b>（${worldFrame} 帧）<br>` +
+    `玩家 ${player.cfg.name} ${Math.ceil(player.hp)} HP &nbsp;|&nbsp; AI ${enemy.cfg.name} ${Math.ceil(enemy.hp)} HP<br>` +
+    `<span style="color:#5f6d86;font-size:12px">设计目标 TTK（中水平 1v1）：16~22 秒。本原型用于手感与帧数据验证，AI 强度不等于真人。</span>`;
+  ov.classList.add('on');
+}
+
+/* ------------------------- 初始化 UI ------------------------- */
+let sel = 0;
+function buildMenu() {
+  const grid = document.getElementById('hgrid');
+  grid.innerHTML = HEROES.map((h, i) => `
+    <div class="hcard ${i === 0 ? 'on' : ''}" data-i="${i}">
+      <div class="hn" style="color:${h.color}">${h.name}</div>
+      <div class="hs">${h.sub}</div>
+      <div class="hd">${h.desc}</div>
+      <div class="hd" style="color:${h.color};opacity:.75;margin-top:6px">${h.quote}</div>
+      <div class="hd" style="margin-top:8px;font-size:10.5px;color:#5f6d86;line-height:1.75">
+        距离 ${h.range}px　轻击起手 ${h.startupOffset >= 0 ? '+' : ''}${h.startupOffset}f<br>
+        伤害 ×${h.dmgScale.toFixed(2)}　削韧 ×${h.poiseScale.toFixed(2)}
+      </div>
+    </div>`).join('');
+  grid.querySelectorAll('.hcard').forEach(el => {
+    el.addEventListener('click', () => {
+      grid.querySelectorAll('.hcard').forEach(x => x.classList.remove('on'));
+      el.classList.add('on');
+      sel = +el.dataset.i;
+      renderMenuPreview();
+    });
+  });
+  document.querySelectorAll('.dbtn').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.dbtn').forEach(x => x.classList.remove('on'));
+      el.classList.add('on');
+      aiLevel = +el.dataset.d;
+    });
+  });
+  document.getElementById('go').addEventListener('click', () => startGame(sel));
+  document.getElementById('again').addEventListener('click', () => {
+    document.getElementById('over').classList.remove('on');
+    document.getElementById('menu').style.display = 'flex';
+  });
+  document.getElementById('panel').innerHTML = '<div class="ph">操作提示</div><div class="k" style="line-height:1.9">请先在左侧选择职业与 AI 难度，点击「开始对局」。<br><br>右侧面板会实时显示当前招式的起手 / 判定 / 收招帧数，以及命中与被格挡的有利帧——可与设计文档逐项核对。</div>';
+}
+function renderMenuPreview() { /* 预留 */ }
+
+/* ------------------------- 启动 ------------------------- */
+let acc = 0, last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  acc += dt;
+  let guard = 0;
+  while (acc >= DT && guard++ < 6) { if (!gameOver && player) step(); acc -= DT; }
+  if (player) { render(); renderPanel(); }
+  requestAnimationFrame(loop);
+}
+
+function fitStage() {
+  const st = document.getElementById('stage');
+  const panelOff = st.classList.contains('panel-off');
+  const needW = 1280 + (panelOff ? 0 : 316);
+  const s = Math.min(window.innerWidth / (needW + 60), window.innerHeight / (720 + 120), 1);
+  st.style.transform = 'scale(' + s + ')';
+}
+
+window.addEventListener('resize', fitStage);
+(function init() {
+  const cv = document.getElementById('cv');
+  drawCtx = cv.getContext('2d');
+  buildMenu();
+  fitStage();
+  // 演示角色（菜单背景可见）
+  player = new Fighter(HEROES[0], 440, 1, true);
+  enemy  = new Fighter(HEROES[1], 840, -1, false);
+  gameOver = true;
+  render(); renderPanel();
+  requestAnimationFrame(loop);
+
+  // 输入显示钩子
+  addEventListener('keydown', e => {
+    const k = normKey(e);
+    if (!k) return;
+    if (k === 'left') pushInput('←'); else if (k === 'right') pushInput('→');
+    else if (k === 'light') pushInput('轻'); else if (k === 'heavy') pushInput('重');
+    else if (k === 'launch') pushInput('挑'); else if (k === 'block') pushInput('格');
+    else if (k === 'dodge') pushInput('闪'); else if (k === 'ult') pushInput('绝');
+  });
+  addEventListener('keydown', e => {
+    if (e.code === 'F1') { e.preventDefault(); DEBUG = !DEBUG; }
+    if (e.code === 'KeyR' && player) startGame(sel);
+  });
+
+  initTouchControls();
+})();
+
+/* ------------------------- 触屏控制 -------------------------
+   桌面端完全不受影响（只在检测到触屏时才建按钮）。
+   按钮直接写 keys / pressedThisFrame —— 与键盘走同一条输入链路，
+   所以帧数据、输入缓冲、冷却的表现与键盘完全一致。 */
+function initTouchControls() {
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 ||
+                  (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  if (!isTouch) return;
+  document.body.classList.add('touch');
+
+  /* 注意：这里必须写【归一化后的键名】（left/light/skill1…），
+     而不是 KeyboardEvent.code（KeyA/KeyJ/KeyQ…）。
+     游戏内部统一读 keys['left'] / keys['light']，键盘那边由 normKey() 做转换；
+     触摸按钮绕过了 keyboard 事件，所以必须自己用归一化名，否则按钮会亮但输入进不去。 */
+  const defs = [
+    { k:'left',   label:'←',  cls:'move' },
+    { k:'right',  label:'→',  cls:'move' },
+    { k:'block',  label:'格', cls:'sk' },
+    { k:'dodge',  label:'闪', cls:'sk' },
+    { k:'light',  label:'轻', cls:'' },
+    { k:'heavy',  label:'重', cls:'' },
+    { k:'launch', label:'挑', cls:'sk' },
+    { k:'skill1', label:'技1', cls:'sk' },
+    { k:'skill2', label:'技2', cls:'sk' },
+    { k:'ult',    label:'绝', cls:'sk' },
+  ];
+  const pad = document.getElementById('touchpad');
+  const left = document.createElement('div'); left.className = 'grp';
+  const right = document.createElement('div'); right.className = 'grp';
+  pad.appendChild(left); pad.appendChild(right);
+
+  defs.forEach((d, i) => {
+    const b = document.createElement('button');
+    b.textContent = d.label;
+    if (d.cls) b.className = d.cls;
+    // 前两个是方向键，放左边；其余放右边
+    (i < 2 ? left : right).appendChild(b);
+
+    const press = (ev) => {
+      ev.preventDefault();
+      b.classList.add('on');
+      keys[d.k] = true;
+      pressedThisFrame[d.k] = true;   // 与键盘 keydown 走同一条输入链路
+    };
+    const release = (ev) => {
+      if (ev) ev.preventDefault();
+      b.classList.remove('on');
+      keys[d.k] = false;
+    };
+    b.addEventListener('touchstart', press, { passive: false });
+    b.addEventListener('touchend', release, { passive: false });
+    b.addEventListener('touchcancel', release, { passive: false });
+    b.addEventListener('mousedown', press);      // 方便桌面调试
+    b.addEventListener('mouseup', release);
+    b.addEventListener('mouseleave', release);
+  });
+
+  // 阻止页面被拖动 / 双指缩放
+  document.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturestart', e => { e.preventDefault(); });
+  document.getElementById('wrap').style.overflow = 'hidden';
+}
+
+</script>
+</body>
+</html>
